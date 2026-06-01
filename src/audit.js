@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { VERSION } from "./args.js";
 import { loadConfig } from "./config.js";
 import { rules } from "./rules.js";
 
@@ -79,6 +80,74 @@ export function formatMarkdownReport(result) {
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+export function formatSarifReport(result) {
+  const sarif = {
+    $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+    version: "2.1.0",
+    runs: [
+      {
+        tool: {
+          driver: {
+            name: "README Lens",
+            semanticVersion: VERSION,
+            informationUri: "https://github.com/KODEXFV/readme-lens",
+            rules: result.checks.map((check) => ({
+              id: check.id,
+              name: check.title,
+              shortDescription: {
+                text: check.title
+              },
+              fullDescription: {
+                text: check.advice
+              },
+              defaultConfiguration: {
+                level: "warning"
+              },
+              properties: {
+                tags: ["readme", "documentation", "maintainability"],
+                weight: check.weight
+              }
+            }))
+          }
+        },
+        properties: {
+          score: result.score,
+          maxScore: result.maxScore,
+          percentage: result.percentage,
+          grade: result.grade
+        },
+        results: result.checks
+          .filter((check) => !check.passed)
+          .map((check) => ({
+            ruleId: check.id,
+            ruleIndex: result.checks.findIndex((candidate) => candidate.id === check.id),
+            level: "warning",
+            message: {
+              text: `${check.title}: ${check.advice}`
+            },
+            locations: [
+              {
+                physicalLocation: {
+                  artifactLocation: {
+                    uri: sarifLocationUri(result)
+                  },
+                  region: {
+                    startLine: 1
+                  }
+                }
+              }
+            ],
+            properties: {
+              weight: check.weight
+            }
+          }))
+      }
+    ]
+  };
+
+  return `${JSON.stringify(sarif, null, 2)}\n`;
 }
 
 function createContext({ files, packageJson, readme }) {
@@ -192,6 +261,14 @@ function gradeForScore(score) {
 
 function shouldSkip(name) {
   return [".git", "node_modules", "dist", "coverage", ".next", ".turbo"].includes(name);
+}
+
+function sarifLocationUri(result) {
+  if (!result.readmePath) {
+    return "README.md";
+  }
+
+  return toPosixPath(path.relative(result.targetPath, result.readmePath));
 }
 
 function toPosixPath(filePath) {

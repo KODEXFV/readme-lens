@@ -1,0 +1,26 @@
+name: README Lens
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  readme-lens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: KODEXFV/readme-lens/.github/actions/readme-lens@v0.3.0
+        with:
+          min-score: "80"
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: readme-lens.sarif

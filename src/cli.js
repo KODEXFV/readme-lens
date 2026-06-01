@@ -2,7 +2,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { VERSION, helpText, parseArgs } from "./args.js";
-import { auditRepository, formatMarkdownReport } from "./audit.js";
+import { auditRepository, formatMarkdownReport, formatSarifReport } from "./audit.js";
 
 export async function main(argv = process.argv.slice(2)) {
   let args;
@@ -28,6 +28,8 @@ export async function main(argv = process.argv.slice(2)) {
     const result = await auditRepository(args.path);
     if (args.json) {
       console.log(JSON.stringify(result, null, 2));
+    } else if (args.sarif) {
+      console.log(formatSarifReport(result));
     } else {
       console.log(formatMarkdownReport(result));
     }

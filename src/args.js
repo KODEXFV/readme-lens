@@ -1,4 +1,4 @@
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 
 export function parseArgs(argv) {
   const parsed = {
@@ -6,6 +6,7 @@ export function parseArgs(argv) {
     json: false,
     minScore: null,
     path: ".",
+    sarif: false,
     version: false
   };
 
@@ -18,6 +19,8 @@ export function parseArgs(argv) {
       parsed.version = true;
     } else if (arg === "--json") {
       parsed.json = true;
+    } else if (arg === "--sarif") {
+      parsed.sarif = true;
     } else if (arg === "--min-score") {
       const value = Number(argv[index + 1]);
       if (!Number.isInteger(value) || value < 0 || value > 100) {
@@ -32,6 +35,10 @@ export function parseArgs(argv) {
     }
   }
 
+  if (parsed.json && parsed.sarif) {
+    throw new Error("--json and --sarif cannot be used together");
+  }
+
   return parsed;
 }
 
@@ -43,6 +50,7 @@ Usage:
 
 Options:
   --json              Print the audit result as JSON.
+  --sarif             Print failed checks as SARIF 2.1.0 JSON.
   --min-score <0-100> Exit with code 1 when the score is below this value.
                       Overrides readme-lens.config.json when both are set.
   -v, --version       Print the version.
@@ -52,5 +60,6 @@ Examples:
   readme-lens .
   readme-lens ../my-project --min-score 80
   readme-lens . --json
+  readme-lens . --sarif > readme-lens.sarif
 `;
 }

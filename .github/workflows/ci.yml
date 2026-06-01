@@ -18,3 +18,4 @@ jobs:
       - run: npm test
       - run: npm run lint
       - run: node ./src/cli.js . --min-score 90
+      - run: node ./src/cli.js . --sarif > readme-lens.sarif

@@ -1,0 +1,33 @@
+name: README Lens
+description: Audit README and repository onboarding quality, then write SARIF results.
+
+inputs:
+  path:
+    description: Repository path to audit.
+    required: false
+    default: .
+  min-score:
+    description: Optional minimum score from 0 to 100.
+    required: false
+    default: ""
+  sarif-file:
+    description: SARIF file path to write.
+    required: false
+    default: readme-lens.sarif
+
+outputs:
+  sarif-file:
+    description: The SARIF file path written by README Lens.
+    value: ${{ inputs.sarif-file }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        args=("${{ inputs.path }}" "--sarif")
+        if [ -n "${{ inputs.min-score }}" ]; then
+          args+=("--min-score" "${{ inputs.min-score }}")
+        fi
+
+        node "$GITHUB_ACTION_PATH/../../../src/cli.js" "${args[@]}" > "${{ inputs.sarif-file }}"

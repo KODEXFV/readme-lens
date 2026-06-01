@@ -35,11 +35,18 @@ Print machine-readable output:
 readme-lens . --json
 ```
 
+Print SARIF for GitHub code scanning:
+
+```sh
+readme-lens . --sarif > readme-lens.sarif
+```
+
 ## Options
 
 | Option | Description |
 | --- | --- |
 | `--json` | Print the full audit result as JSON. |
+| `--sarif` | Print failed checks as SARIF 2.1.0 JSON. |
 | `--min-score <0-100>` | Exit with code `1` when the score is below the threshold. |
 | `-v`, `--version` | Print the current version. |
 | `-h`, `--help` | Print command help. |
@@ -66,6 +73,41 @@ node ./src/cli.js . --min-score 90
 ```
 
 README Lens currently checks for a project title, useful summary, installation steps, usage examples, options or API reference, examples, testing guidance, contribution notes, licensing, security reporting, change history, and package metadata.
+
+## GitHub Actions
+
+Use SARIF output with GitHub code scanning:
+
+```yaml
+name: README Lens
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  readme-lens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: KODEXFV/readme-lens/.github/actions/readme-lens@v0.3.0
+        with:
+          min-score: "80"
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: readme-lens.sarif
+```
+
+The action writes `readme-lens.sarif` by default. This repository also includes [examples/github-action.yml](examples/github-action.yml) as a copyable workflow template.
 
 ## API
 
@@ -110,10 +152,9 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Roadmap
 
-- Add optional SARIF output for code scanning dashboards.
 - Add ecosystem-specific rules for Python, Rust, Go, and frontend packages.
-- Add a GitHub Action wrapper for one-line CI setup.
 - Expand rule configuration for per-rule weights and ecosystem presets.
+- Publish README Lens to npm for global installs outside GitHub Actions.
 
 ## License
 

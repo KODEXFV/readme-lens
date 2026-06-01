@@ -2,6 +2,14 @@
 
 All notable changes to README Lens will be documented in this file.
 
+## 0.3.0 - 2026-06-01
+
+- Added `--sarif` output for GitHub code scanning dashboards.
+- Added SARIF formatter tests and CLI coverage.
+- Added a composite GitHub Action for writing SARIF results.
+- Documented GitHub Actions usage for uploading README Lens findings.
+- Added a copyable GitHub Actions workflow template.
+
 ## 0.2.0 - 2026-06-01
 
 - Added `readme-lens.config.json` support.

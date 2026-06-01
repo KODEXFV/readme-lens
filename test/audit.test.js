@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseArgs } from "../src/args.js";
-import { auditRepository, formatMarkdownReport } from "../src/audit.js";
+import { auditRepository, formatMarkdownReport, formatSarifReport } from "../src/audit.js";
 import { CONFIG_FILE } from "../src/config.js";
 
 const execFileAsync = promisify(execFile);
@@ -89,6 +89,18 @@ test("reports actionable gaps when no README exists", async () => {
   assert.match(report, /Needs Work/);
 });
 
+test("formats failed checks as SARIF", async () => {
+  const repo = await createTempRepo();
+  const result = await auditRepository(repo);
+  const sarif = JSON.parse(formatSarifReport(result));
+
+  assert.equal(sarif.version, "2.1.0");
+  assert.equal(sarif.runs[0].tool.driver.name, "README Lens");
+  assert.equal(sarif.runs[0].tool.driver.rules.length, result.checks.length);
+  assert.equal(sarif.runs[0].results.length, result.failed);
+  assert.equal(sarif.runs[0].results[0].locations[0].physicalLocation.artifactLocation.uri, "README.md");
+});
+
 test("applies readme-lens.config.json rule settings", async () => {
   const repo = await createTempRepo();
   await writeFile(path.join(repo, "README.md"), "# Demo\n\nShort.");
@@ -156,14 +168,37 @@ test("lets --min-score override configured minScore", async () => {
   assert.match(result.stdout, /README Lens Report/);
 });
 
+test("prints SARIF from the CLI", async () => {
+  const repo = await createTempRepo();
+  const result = await execFileAsync(process.execPath, ["./src/cli.js", repo, "--sarif"]);
+  const sarif = JSON.parse(result.stdout);
+
+  assert.equal(sarif.version, "2.1.0");
+  assert.equal(sarif.runs[0].results.length > 0, true);
+});
+
 test("parses CLI arguments", () => {
   assert.deepEqual(parseArgs(["docs", "--json", "--min-score", "75"]), {
     help: false,
     json: true,
     minScore: 75,
     path: "docs",
+    sarif: false,
     version: false
   });
+
+  assert.deepEqual(parseArgs(["docs", "--sarif"]), {
+    help: false,
+    json: false,
+    minScore: null,
+    path: "docs",
+    sarif: true,
+    version: false
+  });
+});
+
+test("rejects multiple machine-readable output modes", () => {
+  assert.throws(() => parseArgs(["--json", "--sarif"]), /cannot be used together/);
 });
 
 async function createTempRepo() {
