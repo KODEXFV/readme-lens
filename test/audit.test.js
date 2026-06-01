@@ -71,9 +71,11 @@ MIT
 
   const result = await auditRepository(repo);
 
-  assert.equal(result.maxScore, 100);
+  assert.deepEqual(result.ecosystems, ["node"]);
+  assert.equal(result.maxScore, 106);
   assert.equal(result.percentage, 100);
   assert.equal(result.failed, 0);
+  assert.equal(findCheck(result, "node-package-workflow").passed, true);
 });
 
 test("reports actionable gaps when no README exists", async () => {
@@ -84,9 +86,72 @@ test("reports actionable gaps when no README exists", async () => {
   assert.equal(result.readmePath, null);
   assert.equal(result.configPath, null);
   assert.deepEqual(result.config, { disabledRules: [], minScore: null });
+  assert.deepEqual(result.ecosystems, []);
   assert.equal(result.percentage, 0);
   assert.match(report, /README: not found/);
+  assert.match(report, /Ecosystems: none detected/);
   assert.match(report, /Needs Work/);
+});
+
+test("applies Python ecosystem checks when Python project files exist", async () => {
+  const repo = await createTempRepo();
+  await writeFile(path.join(repo, "pyproject.toml"), "[project]\nname = \"demo\"\n");
+  await writeFile(path.join(repo, "README.md"), "# Python Tool\n\nShort.");
+
+  const result = await auditRepository(repo);
+
+  assert.deepEqual(result.ecosystems, ["python"]);
+  assert.equal(findCheck(result, "python-environment-workflow").passed, false);
+});
+
+test("passes Rust ecosystem checks when Cargo commands are documented", async () => {
+  const repo = await createTempRepo();
+  await writeFile(path.join(repo, "Cargo.toml"), "[package]\nname = \"demo\"\nversion = \"0.1.0\"\n");
+  await writeFile(
+    path.join(repo, "README.md"),
+    "# Rust Tool\n\nRust Tool helps maintainers test a crate.\n\n## Usage\n\n```sh\ncargo test\n```\n"
+  );
+
+  const result = await auditRepository(repo);
+
+  assert.deepEqual(result.ecosystems, ["rust"]);
+  assert.equal(findCheck(result, "rust-cargo-workflow").passed, true);
+});
+
+test("passes Go ecosystem checks when Go commands are documented", async () => {
+  const repo = await createTempRepo();
+  await writeFile(path.join(repo, "go.mod"), "module example.com/demo\n\ngo 1.22\n");
+  await writeFile(
+    path.join(repo, "README.md"),
+    "# Go Tool\n\nGo Tool helps maintainers test a module.\n\n## Testing\n\n```sh\ngo test ./...\n```\n"
+  );
+
+  const result = await auditRepository(repo);
+
+  assert.deepEqual(result.ecosystems, ["go"]);
+  assert.equal(findCheck(result, "go-module-workflow").passed, true);
+});
+
+test("passes frontend ecosystem checks when dev commands are documented", async () => {
+  const repo = await createTempRepo();
+  await writeFile(
+    path.join(repo, "package.json"),
+    JSON.stringify({
+      description: "Demo frontend",
+      scripts: { dev: "vite --host 0.0.0.0", build: "vite build" },
+      dependencies: { react: "^19.0.0", vite: "^7.0.0" }
+    })
+  );
+  await writeFile(
+    path.join(repo, "README.md"),
+    "# Frontend Tool\n\nFrontend Tool helps maintainers test UI docs.\n\n## Installation\n\n```sh\nnpm install\n```\n\n## Usage\n\n```sh\nnpm run dev\n```\n"
+  );
+
+  const result = await auditRepository(repo);
+
+  assert.deepEqual(result.ecosystems, ["node", "frontend"]);
+  assert.equal(findCheck(result, "node-package-workflow").passed, true);
+  assert.equal(findCheck(result, "frontend-dev-workflow").passed, true);
 });
 
 test("formats failed checks as SARIF", async () => {
@@ -200,6 +265,12 @@ test("parses CLI arguments", () => {
 test("rejects multiple machine-readable output modes", () => {
   assert.throws(() => parseArgs(["--json", "--sarif"]), /cannot be used together/);
 });
+
+function findCheck(result, id) {
+  const check = result.checks.find((candidate) => candidate.id === id);
+  assert.ok(check, `Expected check ${id} to exist`);
+  return check;
+}
 
 async function createTempRepo() {
   return mkdtemp(path.join(os.tmpdir(), "readme-lens-"));

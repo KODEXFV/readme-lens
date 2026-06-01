@@ -97,5 +97,77 @@ export const rules = [
       context.hasPath(/^cargo\.toml$/i) ||
       context.hasPath(/^go\.mod$/i),
     advice: "Add package metadata such as description, scripts, keywords, or module information."
+  },
+  {
+    id: "node-package-workflow",
+    title: "Node package workflow",
+    ecosystems: ["node"],
+    weight: 6,
+    applies: (context) => context.hasEcosystem("node"),
+    passes: (context) => hasNodeInstallCommand(context.readme) && mentionsPackageScript(context),
+    advice: "For Node projects, document the package manager install command and at least one package script such as test, lint, start, or build."
+  },
+  {
+    id: "python-environment-workflow",
+    title: "Python environment workflow",
+    ecosystems: ["python"],
+    weight: 6,
+    applies: (context) => context.hasEcosystem("python"),
+    passes: (context) =>
+      /\b(python\s+-m\s+venv|virtualenv|pipx\s+install|pip\s+install|uv\s+(sync|pip\s+install)|poetry\s+install|hatch\s+env\s+create|conda\s+env\s+create)\b/i.test(
+        context.readme
+      ),
+    advice: "For Python projects, document how to create the environment and install dependencies with pip, uv, Poetry, Hatch, Conda, or an equivalent tool."
+  },
+  {
+    id: "rust-cargo-workflow",
+    title: "Rust Cargo workflow",
+    ecosystems: ["rust"],
+    weight: 6,
+    applies: (context) => context.hasEcosystem("rust"),
+    passes: (context) => /\bcargo\s+(build|check|test|run|install)\b/i.test(context.readme),
+    advice: "For Rust projects, document the Cargo command contributors should use, such as cargo build, cargo test, cargo run, or cargo install."
+  },
+  {
+    id: "go-module-workflow",
+    title: "Go module workflow",
+    ecosystems: ["go"],
+    weight: 6,
+    applies: (context) => context.hasEcosystem("go"),
+    passes: (context) => /\bgo\s+(test|run|build|install|get|mod\s+download)\b/i.test(context.readme),
+    advice: "For Go projects, document the Go command contributors should use, such as go test ./..., go run, go build, or go install."
+  },
+  {
+    id: "frontend-dev-workflow",
+    title: "Frontend development workflow",
+    ecosystems: ["frontend"],
+    weight: 6,
+    applies: (context) => context.hasEcosystem("frontend"),
+    passes: (context) =>
+      /\b(npm|pnpm|yarn|bun)\s+(run\s+)?(dev|build|preview|start)\b/i.test(context.readme) ||
+      /\b(vite|next|nuxt|astro)\s+(dev|build|preview|start)\b/i.test(context.readme),
+    advice: "For frontend projects, document the local development or build command, such as npm run dev, npm run build, vite dev, or next dev."
   }
 ];
+
+function hasNodeInstallCommand(readme) {
+  return /\b(npm|pnpm|yarn|bun)\s+(install|ci|add|i)\b/i.test(readme);
+}
+
+function mentionsPackageScript(context) {
+  const scripts = context.packageScripts.filter((script) => !script.includes(":")).slice(0, 10);
+  if (scripts.length === 0) {
+    return true;
+  }
+
+  return scripts.some((script) => packageScriptPattern(script).test(context.readme));
+}
+
+function packageScriptPattern(script) {
+  const escapedScript = escapeRegex(script);
+  return new RegExp(`\\b(npm|pnpm|yarn|bun)\\s+(run\\s+)?${escapedScript}\\b`, "i");
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

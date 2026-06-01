@@ -1,6 +1,6 @@
 {
   "name": "readme-lens",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A dependency-free CLI that audits README files and repository onboarding health.",
   "type": "module",
   "bin": {

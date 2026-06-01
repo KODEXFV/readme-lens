@@ -74,6 +74,18 @@ node ./src/cli.js . --min-score 90
 
 README Lens currently checks for a project title, useful summary, installation steps, usage examples, options or API reference, examples, testing guidance, contribution notes, licensing, security reporting, change history, and package metadata.
 
+## Ecosystem Checks
+
+README Lens also detects common project ecosystems and adds only the checks that apply:
+
+| Ecosystem | Detected by | README expectation |
+| --- | --- | --- |
+| Node.js | `package.json` or Node lockfiles | Package manager install command and at least one package script. |
+| Python | `pyproject.toml`, `requirements*.txt`, `setup.py`, `Pipfile`, `poetry.lock`, or `uv.lock` | Environment and dependency setup with pip, uv, Poetry, Hatch, Conda, or similar tooling. |
+| Rust | `Cargo.toml` or `Cargo.lock` | Cargo workflow such as `cargo build`, `cargo test`, `cargo run`, or `cargo install`. |
+| Go | `go.mod` or `go.sum` | Go workflow such as `go test ./...`, `go run`, `go build`, or `go install`. |
+| Frontend | Frontend dependencies, `index.html`, Vite/Next/Astro config, or common UI source files | Local dev or build command such as `npm run dev`, `npm run build`, `vite dev`, or `next dev`. |
+
 ## GitHub Actions
 
 Use SARIF output with GitHub code scanning:
@@ -98,7 +110,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - uses: KODEXFV/readme-lens/.github/actions/readme-lens@v0.3.0
+      - uses: KODEXFV/readme-lens/.github/actions/readme-lens@v0.4.0
         with:
           min-score: "80"
       - uses: github/codeql-action/upload-sarif@v3
@@ -120,7 +132,7 @@ const result = await auditRepository(".");
 console.log(formatMarkdownReport(result));
 ```
 
-The returned result includes the resolved target path, README path, score, grade, and each individual check with its weight and advice.
+The returned result includes the resolved target path, README path, detected ecosystems, score, grade, and each individual check with its weight and advice.
 
 ## Testing
 
@@ -152,9 +164,9 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Roadmap
 
-- Add ecosystem-specific rules for Python, Rust, Go, and frontend packages.
 - Expand rule configuration for per-rule weights and ecosystem presets.
 - Publish README Lens to npm for global installs outside GitHub Actions.
+- Add more ecosystem checks for Docker, Java, and .NET repositories.
 
 ## License
 

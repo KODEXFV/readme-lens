@@ -9,18 +9,24 @@ const README_PATTERN = /^readme(\.(md|markdown|txt|rst))?$/i;
 export async function auditRepository(targetPath = ".") {
   const root = path.resolve(targetPath);
   const { config, configPath } = await loadConfig(root);
-  const enabledRules = filterRules(rules, config.disabledRules);
   const files = await collectFiles(root);
   const readmePath = files.find((file) => README_PATTERN.test(file));
   const readme = readmePath ? await readText(path.join(root, readmePath)) : "";
   const packageJson = await readPackageJson(root);
   const context = createContext({ files, packageJson, readme });
-  const checks = enabledRules.map((rule) => {
+  const enabledRules = filterRules(rules, config.disabledRules);
+  const applicableRules = enabledRules.filter((rule) => !rule.applies || rule.applies(context));
+  if (applicableRules.length === 0) {
+    throw new Error("No applicable README Lens rules remain after configuration");
+  }
+
+  const checks = applicableRules.map((rule) => {
     const passed = Boolean(rule.passes(context));
 
     return {
       id: rule.id,
       title: rule.title,
+      ecosystems: rule.ecosystems ?? [],
       weight: rule.weight,
       passed,
       score: passed ? rule.weight : 0,
@@ -36,6 +42,7 @@ export async function auditRepository(targetPath = ".") {
     readmePath: readmePath ? path.join(root, readmePath) : null,
     configPath,
     config,
+    ecosystems: context.ecosystems,
     score,
     maxScore,
     percentage,
@@ -55,6 +62,7 @@ export function formatMarkdownReport(result) {
     `Target: ${result.targetPath}`,
     `README: ${result.readmePath ?? "not found"}`,
     `Config: ${result.configPath ?? "not found"}`,
+    `Ecosystems: ${result.ecosystems.length > 0 ? result.ecosystems.join(", ") : "none detected"}`,
     `Score: ${result.score}/${result.maxScore} (${result.percentage}%, ${result.grade})`,
     "",
     "## Passed",
@@ -116,7 +124,8 @@ export function formatSarifReport(result) {
           score: result.score,
           maxScore: result.maxScore,
           percentage: result.percentage,
-          grade: result.grade
+          grade: result.grade,
+          ecosystems: result.ecosystems
         },
         results: result.checks
           .filter((check) => !check.passed)
@@ -140,7 +149,8 @@ export function formatSarifReport(result) {
               }
             ],
             properties: {
-              weight: check.weight
+              weight: check.weight,
+              ecosystems: check.ecosystems
             }
           }))
       }
@@ -154,14 +164,21 @@ function createContext({ files, packageJson, readme }) {
   const normalizedFiles = files.map(toPosixPath);
   const headings = [...readme.matchAll(/^#{1,6}\s+(.+)$/gm)].map((match) => match[1].trim());
   const firstParagraph = getFirstParagraph(readme);
+  const ecosystems = detectEcosystems({ files: normalizedFiles, packageJson });
+  const packageScripts = Object.keys(packageJson?.scripts ?? {});
 
   return {
     codeFenceCount: (readme.match(/```/g) ?? []).length / 2,
+    ecosystems,
     files: normalizedFiles,
     firstParagraph,
     headings,
     packageJson,
+    packageScripts,
     readme,
+    hasEcosystem(name) {
+      return ecosystems.includes(name);
+    },
     hasHeading(pattern) {
       return headings.some((heading) => pattern.test(heading.toLowerCase()));
     },
@@ -169,6 +186,56 @@ function createContext({ files, packageJson, readme }) {
       return normalizedFiles.some((file) => pattern.test(file));
     }
   };
+}
+
+function detectEcosystems({ files, packageJson }) {
+  const detected = [];
+
+  if (packageJson || files.some((file) => /^(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb)$/i.test(file))) {
+    detected.push("node");
+  }
+
+  if (
+    files.some((file) =>
+      /^(pyproject\.toml|setup\.py|setup\.cfg|requirements.*\.txt|Pipfile|poetry\.lock|uv\.lock)$/i.test(file)
+    )
+  ) {
+    detected.push("python");
+  }
+
+  if (files.some((file) => /^(Cargo\.toml|Cargo\.lock)$/i.test(file))) {
+    detected.push("rust");
+  }
+
+  if (files.some((file) => /^(go\.mod|go\.sum)$/i.test(file))) {
+    detected.push("go");
+  }
+
+  if (isFrontendProject({ files, packageJson })) {
+    detected.push("frontend");
+  }
+
+  return detected;
+}
+
+function isFrontendProject({ files, packageJson }) {
+  if (files.some((file) => /^(index\.html|vite\.config\.[cm]?[jt]s|next\.config\.[cm]?[jt]s|astro\.config\.[cm]?[jt]s)$/i.test(file))) {
+    return true;
+  }
+
+  if (files.some((file) => /^src\/.+\.(jsx|tsx|vue|svelte)$/i.test(file))) {
+    return true;
+  }
+
+  const dependencies = {
+    ...packageJson?.dependencies,
+    ...packageJson?.devDependencies,
+    ...packageJson?.peerDependencies,
+    ...packageJson?.optionalDependencies
+  };
+  return Object.keys(dependencies).some((name) =>
+    /^(react|vue|svelte|@angular\/core|next|nuxt|vite|astro|solid-js|@remix-run\/react)$/i.test(name)
+  );
 }
 
 function filterRules(allRules, disabledRules) {

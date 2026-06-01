@@ -2,6 +2,13 @@
 
 All notable changes to README Lens will be documented in this file.
 
+## 0.4.0 - 2026-06-01
+
+- Added applicable ecosystem detection for Node.js, Python, Rust, Go, and frontend projects.
+- Added ecosystem-specific README checks that run only when matching project files are detected.
+- Added ecosystem metadata to markdown, JSON, and SARIF output.
+- Updated tests and documentation for ecosystem-aware scoring.
+
 ## 0.3.0 - 2026-06-01
 
 - Added `--sarif` output for GitHub code scanning dashboards.
