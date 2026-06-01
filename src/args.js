@@ -1,4 +1,4 @@
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
 export function parseArgs(argv) {
   const parsed = {
@@ -44,6 +44,7 @@ Usage:
 Options:
   --json              Print the audit result as JSON.
   --min-score <0-100> Exit with code 1 when the score is below this value.
+                      Overrides readme-lens.config.json when both are set.
   -v, --version       Print the version.
   -h, --help          Print this help text.
 

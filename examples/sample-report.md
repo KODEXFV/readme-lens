@@ -2,6 +2,7 @@
 
 Target: /workspace/example-project
 README: /workspace/example-project/README.md
+Config: not found
 Score: 87/100 (87%, good)
 
 ## Passed

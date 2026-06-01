@@ -7,7 +7,7 @@ README Lens is a dependency-free command line tool for maintainers who want quic
 Use the project from source while the package is early:
 
 ```sh
-git clone https://github.com/YOUR-USERNAME/readme-lens.git
+git clone https://github.com/KODEXFV/readme-lens.git
 cd readme-lens
 npm install
 npm link
@@ -43,6 +43,19 @@ readme-lens . --json
 | `--min-score <0-100>` | Exit with code `1` when the score is below the threshold. |
 | `-v`, `--version` | Print the current version. |
 | `-h`, `--help` | Print command help. |
+
+## Configuration
+
+Add `readme-lens.config.json` to the repository root to tune scoring for a project:
+
+```json
+{
+  "disabledRules": ["repo-metadata"],
+  "minScore": 85
+}
+```
+
+`disabledRules` removes rule IDs from scoring. `minScore` sets the default CI threshold when the CLI is run without `--min-score`; the CLI flag overrides the config file when both are provided.
 
 ## Examples
 
@@ -100,7 +113,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 - Add optional SARIF output for code scanning dashboards.
 - Add ecosystem-specific rules for Python, Rust, Go, and frontend packages.
 - Add a GitHub Action wrapper for one-line CI setup.
-- Add rule configuration so teams can tune scoring to their project type.
+- Expand rule configuration for per-rule weights and ecosystem presets.
 
 ## License
 

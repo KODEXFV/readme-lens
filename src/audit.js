@@ -1,17 +1,20 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { loadConfig } from "./config.js";
 import { rules } from "./rules.js";
 
 const README_PATTERN = /^readme(\.(md|markdown|txt|rst))?$/i;
 
 export async function auditRepository(targetPath = ".") {
   const root = path.resolve(targetPath);
+  const { config, configPath } = await loadConfig(root);
+  const enabledRules = filterRules(rules, config.disabledRules);
   const files = await collectFiles(root);
   const readmePath = files.find((file) => README_PATTERN.test(file));
   const readme = readmePath ? await readText(path.join(root, readmePath)) : "";
   const packageJson = await readPackageJson(root);
   const context = createContext({ files, packageJson, readme });
-  const checks = rules.map((rule) => {
+  const checks = enabledRules.map((rule) => {
     const passed = Boolean(rule.passes(context));
 
     return {
@@ -30,6 +33,8 @@ export async function auditRepository(targetPath = ".") {
   return {
     targetPath: root,
     readmePath: readmePath ? path.join(root, readmePath) : null,
+    configPath,
+    config,
     score,
     maxScore,
     percentage,
@@ -48,6 +53,7 @@ export function formatMarkdownReport(result) {
     "",
     `Target: ${result.targetPath}`,
     `README: ${result.readmePath ?? "not found"}`,
+    `Config: ${result.configPath ?? "not found"}`,
     `Score: ${result.score}/${result.maxScore} (${result.percentage}%, ${result.grade})`,
     "",
     "## Passed",
@@ -94,6 +100,22 @@ function createContext({ files, packageJson, readme }) {
       return normalizedFiles.some((file) => pattern.test(file));
     }
   };
+}
+
+function filterRules(allRules, disabledRules) {
+  const knownRuleIds = new Set(allRules.map((rule) => rule.id));
+  const unknownRuleIds = disabledRules.filter((ruleId) => !knownRuleIds.has(ruleId));
+  if (unknownRuleIds.length > 0) {
+    throw new Error(`readme-lens.config.json has unknown rule ID: ${unknownRuleIds.join(", ")}`);
+  }
+
+  const disabledRuleIds = new Set(disabledRules);
+  const enabledRules = allRules.filter((rule) => !disabledRuleIds.has(rule.id));
+  if (enabledRules.length === 0) {
+    throw new Error("readme-lens.config.json must leave at least one rule enabled");
+  }
+
+  return enabledRules;
 }
 
 async function collectFiles(root, depth = 0) {

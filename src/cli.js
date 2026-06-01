@@ -32,7 +32,8 @@ export async function main(argv = process.argv.slice(2)) {
       console.log(formatMarkdownReport(result));
     }
 
-    if (args.minScore !== null && result.percentage < args.minScore) {
+    const minScore = args.minScore ?? result.config.minScore;
+    if (minScore !== null && result.percentage < minScore) {
       process.exitCode = 1;
     }
   } catch (error) {
