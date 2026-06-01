@@ -1,0 +1,27 @@
+{
+  "name": "readme-lens",
+  "version": "0.1.0",
+  "description": "A dependency-free CLI that audits README files and repository onboarding health.",
+  "type": "module",
+  "bin": {
+    "readme-lens": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node ./src/cli.js",
+    "test": "node --test",
+    "lint": "node ./scripts/check-syntax.js"
+  },
+  "keywords": [
+    "readme",
+    "documentation",
+    "open-source",
+    "oss",
+    "cli",
+    "audit"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
